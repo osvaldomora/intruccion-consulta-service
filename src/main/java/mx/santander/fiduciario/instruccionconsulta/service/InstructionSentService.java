@@ -148,7 +148,6 @@ public class InstructionSentService implements IInstructionSentService{
 			//LOG.info("Fecha Filtro: {}",fechaFiltro.toString());
 			int arregloContadorStatus[] = new int [5];
 			int totalStatus = 0;
-			List<CountInstructionsStatusDto> listStatus = new ArrayList<>();
 			List<CountInstructionsStatusDto> countInstructionsStatusDto = new ArrayList<>();
 			
 			List<InstruccionEnviada> listInstructionFiltroDay = listInstructionSend.stream()
