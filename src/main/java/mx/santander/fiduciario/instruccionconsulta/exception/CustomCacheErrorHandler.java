@@ -5,9 +5,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.interceptor.CacheErrorHandler;
 
-import io.lettuce.core.RedisCommandTimeoutException;
-
-
 /**
  * @author David Gonzalez - (Arquetipo creado por Santander Tecnologia Mexico)
  * 
@@ -50,8 +47,8 @@ public class CustomCacheErrorHandler implements CacheErrorHandler{
      * @param exception Excepcion ocurrida en runtime
      */
     private void handleTimeOutException(RuntimeException exception) {
-        if (exception instanceof RedisCommandTimeoutException) {
-            return;
-        }
+//        if (exception instanceof RedisCommandTimeoutException) {
+//            return;
+//        }
     }
 }
