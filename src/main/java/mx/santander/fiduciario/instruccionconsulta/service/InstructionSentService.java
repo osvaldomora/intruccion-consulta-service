@@ -3,7 +3,9 @@ package mx.santander.fiduciario.instruccionconsulta.service;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +13,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import lombok.Setter;
+import mx.santander.fiduciario.instruccionconsulta.dto.instruction.count.CountInstructionStatusPerDay;
+import mx.santander.fiduciario.instruccionconsulta.dto.instruction.count.CountInstructionsDataDto;
+import mx.santander.fiduciario.instruccionconsulta.dto.instruction.count.CountInstructionsDatesDto;
+import mx.santander.fiduciario.instruccionconsulta.dto.instruction.count.CountInstructionsResDto;
+import mx.santander.fiduciario.instruccionconsulta.dto.instruction.count.CountInstructionsStatusDto;
 import mx.santander.fiduciario.instruccionconsulta.dto.instruction.list.InstructionsDataDto;
 import mx.santander.fiduciario.instruccionconsulta.dto.instruction.list.InstructionsDto;
 import mx.santander.fiduciario.instruccionconsulta.dto.instruction.list.InstructionsResDto;
+import mx.santander.fiduciario.instruccionconsulta.enumeration.StatusInstruction;
 import mx.santander.fiduciario.instruccionconsulta.mapper.InstructionMapper;
 import mx.santander.fiduciario.instruccionconsulta.model.InstruccionEnviada;
 import mx.santander.fiduciario.instruccionconsulta.repository.IInstructionSendRepository;
@@ -86,6 +94,140 @@ public class InstructionSentService implements IInstructionSentService{
 		//Se agrega lista de Instrucciones DTO a respuesta final
 		instructionsResDto.getData().setInstructions(instructions);
 		return instructionsResDto;
+	}
+
+	@Override
+	public List<InstruccionEnviada> findByBucAndBusinessAndSubBusinessBetweenDates(String buc, Long business, Long subBusiness) {
+		//Se crea instancia
+		List<InstruccionEnviada> listInstructionSend = new ArrayList<>();
+		
+		//Se crean fechas de consultas
+		Calendar today = GregorianCalendar.getInstance();
+		//Feha 6 dias anteriores
+		Calendar startWeek = DateTool.setTime(DateTool.getDateMinusOrSumDay(today.getTime(),-6).getTime(), 0, 0, 0);
+		
+		//Se valida tipo de consulta a la BD
+		if(business==null && subBusiness==null) {	//Consulta solo por buc, todos los negocios y subnegocios
+			listInstructionSend = this.instructionSendRepository.findByBucAndDateInstructionBetweenDates(buc, startWeek.getTime(), today.getTime());
+		}else {	//Consulta por buc, negocio y subnegocio especifico
+			listInstructionSend = this.instructionSendRepository.findStatusByBucAndIdBusinessAndIdSubBusiness(buc, business, subBusiness, startWeek.getTime(), today.getTime());
+		}
+		LOGGER.info("Tamaño de lista de instrucciones: {}",listInstructionSend.size());
+		
+		return listInstructionSend;
+	}
+
+	@Override
+	public CountInstructionsResDto countInstructions(String buc, Long business, Long subBusiness) {
+		CountInstructionsResDto countInstructionsResDto = CountInstructionsResDto.builder()
+																.data(CountInstructionsDataDto.builder()
+																		.build())
+																.build();
+		
+		Calendar dateRequest = GregorianCalendar.getInstance();
+		//Se crean fechas de consultas
+		Calendar today = GregorianCalendar.getInstance();
+		//Feha 6 dias anteriores
+		Calendar startWeek = DateTool.setTime(DateTool.getDateMinusOrSumDay(today.getTime(),-6).getTime(), 0, 0, 0);
+		Long auxBusiness=business;
+		Long auxSubBusiness=subBusiness;
+		
+		//Recupera datos de consulta
+		List<InstruccionEnviada> listInstructionSend = this.findByBucAndBusinessAndSubBusinessBetweenDates(buc, business, subBusiness);
+		//Lista de instrucciones vacia, regresa respuesta vacia
+		if(listInstructionSend.isEmpty()) {
+			LOGGER.info("No hay instrucciones...");
+			return countInstructionsResDto;
+		}
+		
+		//Lista de instrucciones por dia a llenar
+		List<CountInstructionStatusPerDay> perDay = new ArrayList<>();
+		
+		for(int i=6; i>=0;i--) {
+			Calendar fechaFiltro = DateTool.getDateMinusOrSumDay(dateRequest.getTime(),-i);
+			//LOG.info("Fecha Filtro: {}",fechaFiltro.toString());
+			int arregloContadorStatus[] = new int [5];
+			int totalStatus = 0;
+			List<CountInstructionsStatusDto> listStatus = new ArrayList<>();
+			List<CountInstructionsStatusDto> countInstructionsStatusDto = new ArrayList<>();
+			
+			List<InstruccionEnviada> listInstructionFiltroDay = listInstructionSend.stream()
+															.filter( e -> DateTool.getDay(e.getFchRegisInsct()) == DateTool.getDay(fechaFiltro.getTime()))
+															.collect(Collectors.toList());
+
+			
+			for (InstruccionEnviada entity : listInstructionFiltroDay) {
+				//LOG.info("entity: "+ entity.toString());
+				totalStatus += 1;
+				switch (entity.getEstatusInstr().getDscNombr()) {
+				case "SOLICITADA":
+						arregloContadorStatus[0]+=1;
+					break;
+				case "ENTREGADA":
+						arregloContadorStatus[1]+=1;
+					break;
+				case "EN PROCESO":
+						arregloContadorStatus[2]+=1;
+					break;
+				case "ATENDIDA":
+						arregloContadorStatus[3]+=1;
+					break;
+				case "RECHAZADA":
+						arregloContadorStatus[4]+=1;
+					break;
+				}
+			}
+		
+			countInstructionsStatusDto.add(CountInstructionsStatusDto.builder()
+					.id(StatusInstruction.SOLICITADA.getId())
+					.description(StatusInstruction.SOLICITADA.getDescription())
+					.quantity(arregloContadorStatus[0]).build());
+			
+			countInstructionsStatusDto.add(CountInstructionsStatusDto.builder()
+					.id(StatusInstruction.ENTREGADA.getId())
+					.description(StatusInstruction.ENTREGADA.getDescription())
+					.quantity(arregloContadorStatus[1]).build());
+			
+
+			countInstructionsStatusDto.add(CountInstructionsStatusDto.builder()
+					.id(StatusInstruction.PROCESO.getId())
+					.description(StatusInstruction.PROCESO.getDescription())
+					.quantity(arregloContadorStatus[2]).build());
+			
+			countInstructionsStatusDto.add(CountInstructionsStatusDto.builder()
+					.id(StatusInstruction.ATENDIDA.getId())
+					.description(StatusInstruction.ATENDIDA.getDescription())
+					.quantity(arregloContadorStatus[3]).build());
+			
+			countInstructionsStatusDto.add(CountInstructionsStatusDto.builder()
+					.id(StatusInstruction.RECHAZADA.getId())
+					.description(StatusInstruction.RECHAZADA.getDescription())
+					.quantity(arregloContadorStatus[4]).build());
+			LOGGER.info("Fecha Filtro: {} antes de perDay",fechaFiltro.getTime());
+			perDay.add(CountInstructionStatusPerDay.builder()
+							.date(fechaFiltro.getTime())
+							.day(DateTool.getNameDayOfWeek(fechaFiltro.getTime()))
+							.status(countInstructionsStatusDto)
+							.totalStatus(totalStatus)
+							.build());
+			
+		}
+		
+		//Se crea respuesta Lista de Estatus por Dia		
+		countInstructionsResDto = CountInstructionsResDto.builder()
+									.data(CountInstructionsDataDto.builder()
+										.buc(buc)
+										.business(auxBusiness)
+										.subBusiness(auxSubBusiness)
+										.statusPerDay(perDay)
+										.dates(CountInstructionsDatesDto.builder()
+												.start(startWeek.getTime())
+												.end(dateRequest.getTime())
+												.build())
+										.build())
+									.build();
+		
+		return countInstructionsResDto;
 	}
 
 }

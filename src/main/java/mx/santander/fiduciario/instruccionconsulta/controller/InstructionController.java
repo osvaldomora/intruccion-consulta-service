@@ -1,6 +1,5 @@
 package mx.santander.fiduciario.instruccionconsulta.controller;
 
-
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -20,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.Setter;
+import mx.santander.fiduciario.instruccionconsulta.dto.instruction.count.CountInstructionsResDto;
 import mx.santander.fiduciario.instruccionconsulta.dto.instruction.list.InstructionsResDto;
 import mx.santander.fiduciario.instruccionconsulta.dto.typeInstruction.download.TypeInstrFileDownloadDto;
 import mx.santander.fiduciario.instruccionconsulta.dto.typeInstruction.list.TypeInstructionsDataResDto;
@@ -42,21 +42,50 @@ public class InstructionController {
 	//La Constante LOGGER. Obtiene el Logger de la clase
 	private static final Logger LOGGER = LoggerFactory.getLogger(InstructionController.class);
 	
-	/**Servicio de Tipo de Instruccion*/
+	//Variable de servicio de Tipo de Instruccion
 	@Autowired
 	private ITypeInstructionService typeInstructionService;
 	
+	//Variable de servicio de instrucciones
 	@Autowired
 	private IInstructionSentService instructionSendService;
 	
 	
+	@GetMapping("/instructions/count_status")
+	public ResponseEntity<?> countInstructions(@RequestParam(name = "buc", required = true)String buc,
+			  									@RequestParam(name = "business.id", required = false)Long businessId,
+			  									@RequestParam(name = "subBusiness.id", required = false)Long subBusinessId){
+		
+		LOGGER.info("Metodo: GET, Operacion: findAllInstructions, buc: {}, businnes: {}, subBusiness: {}",buc,businessId,subBusinessId);
+		CountInstructionsResDto countInstructionsResDto = this.instructionSendService.countInstructions(buc, businessId, subBusinessId);
+		
+		if(countInstructionsResDto.getData().getStatusPerDay().isEmpty()) {
+			return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+		}
+		return ResponseEntity.status(HttpStatus.OK).body(countInstructionsResDto);
+	}
 	
 	
+
+	/**
+     * Este es un metodo HTTP GET consulta el recurso de instrucciones
+	 * y en la implementacion de la interfaz de negocio instructionSendServicee
+	 * puede realizar ciertas transformaciones DTO a la consulta para enriquecer la presentacion.
+	 * 
+	 * Este metodo es idempotente, y sus procesos derivados NUNCA deben modificar el estado de algun recurso en el servidor. 
+	 * TODOS los procesos desencadenados deben ser solo de consulta.
+	 * 
+	 * @param buc identificador unico del cliente
+	 * @param businessId contrato de cliente
+	 * @param subBusinessId subContrato de cliente
+	 * @return lista de clientes asociadas al cliente
+	 */
 	@GetMapping("/instructions")
 	public ResponseEntity<?> findAllInstructions(@RequestParam(name = "buc", required = true)String buc,
 			  									@RequestParam(name = "business.id", required = true)Long businessId,
 			  									@RequestParam(name = "subBusiness.id", required = true)Long subBusinessId){
 		
+		LOGGER.info("Metodo: GET, Operacion: findAllInstructions, buc: {}, businnes: {}, subBusiness: {}",buc,businessId,subBusinessId);
 		InstructionsResDto instructionsResDto = this.instructionSendService.findAll(buc, businessId, subBusinessId);
 		
 		if(instructionsResDto.getData().getInstructions().isEmpty()) {
@@ -64,11 +93,6 @@ public class InstructionController {
 		}
 		return ResponseEntity.status(HttpStatus.OK).body(instructionsResDto);
 	}
-	
-	
-	
-	
-	
 	
     /**
      * Este es un metodo HTTP GET consulta el recurso de tipo de instruccion
@@ -81,7 +105,8 @@ public class InstructionController {
      * @return Una lista de typeInstructions en un objeto JSON obtenido
      */
 	@GetMapping("/type_instructions")
-	public ResponseEntity<?> findAll(){
+	public ResponseEntity<?> findAllTypeInstructions(){
+		LOGGER.info("Metodo: GET, Operacion: findAllTypeInstructions");
 		TypeInstructionsDataResDto resDto = typeInstructionService.findAllListTypInstr();
 		if(resDto.getData().getTypeInstructions().isEmpty()) {
 			return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
@@ -96,9 +121,9 @@ public class InstructionController {
 	 * 
 	 * Este metodo es idempotente, y sus procesos derivados NUNCA deben modificar el estado de algun recurso en el servidor. 
 	 * TODOS los procesos desencadenados deben ser solo de consulta.
-	 * 
-     * @return Una lista de typeInstructions en un objeto JSON obtenido
-     */
+	 * @param id Identificador de tipo de instruccion
+	 * @return 
+	 */
 	@GetMapping("/type_instructions/{id}/download")
 	public ResponseEntity<?> download(@PathVariable(name = "id", required = true) Long id){
 		LOGGER.info("Metodo: GET, Operacion: download, tipoInstruccion a descargar id: {}",id);
