@@ -15,26 +15,15 @@ spring:
 #---------------------------------------
 #Configuraciones de Spring Data JPA - Oracle
 #---------------------------------------
-  datasource: 
-    initialization-mode: always
-    url: jdbc:h2:mem:fiduciarioPlus;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=Oracle
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:   
-    #url: jdbc:oracle:thin:@127.0.0.1:1521:xe
-    #username: iacruz
-    #password: iacruz
-    #driver-class-oracle.jdbc.driver: OracleDriver
-    #initialization-mode: never
+  datasource:  
+    url: jdbc:oracle:thin:@127.0.0.1:1521:xe
+    username: iacruz
+    password: iacruz
+    driver-class-oracle.jdbc.driver: OracleDriver
+    initialization-mode: never
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: #update  #Solo para ambientes locales (al iniciar la app actualiza el esquema de la BD). Para ambientes posteriores se aconseja colocar: validate
-  h2:
-    console:
-      enabled: true
-      path: /h2-developers
-      
+      ddl-auto: #update  #Solo para ambientes locales (al iniciar la app actualiza el esquema de la BD). Para ambientes posteriores se aconseja colocar: validate      
 #---------------------------------------
 #Configuraciones de keymanager del filtro de validacion de JWT de Serenity
 #---------------------------------------
